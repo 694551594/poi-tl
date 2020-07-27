@@ -15,14 +15,15 @@
  */
 package com.deepoove.poi.config;
 
-import java.util.ArrayList;
+import java.lang.reflect.Method;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.poi.xddf.usermodel.chart.ChartTypes;
 
 import com.deepoove.poi.exception.RenderException;
 import com.deepoove.poi.policy.DocxRenderPolicy;
@@ -31,12 +32,18 @@ import com.deepoove.poi.policy.NumbericRenderPolicy;
 import com.deepoove.poi.policy.PictureRenderPolicy;
 import com.deepoove.poi.policy.RenderPolicy;
 import com.deepoove.poi.policy.TextRenderPolicy;
-import com.deepoove.poi.policy.ref.ReferenceRenderPolicy;
+import com.deepoove.poi.policy.reference.DefaultChartTemplateRenderPolicy;
+import com.deepoove.poi.policy.reference.DefaultPictureTemplateRenderPolicy;
+import com.deepoove.poi.policy.reference.MultiSeriesChartTemplateRenderPolicy;
+import com.deepoove.poi.policy.reference.SingleSeriesChartTemplateRenderPolicy;
 import com.deepoove.poi.render.RenderContext;
 import com.deepoove.poi.render.compute.DefaultRenderDataComputeFactory;
 import com.deepoove.poi.render.compute.RenderDataComputeFactory;
-import com.deepoove.poi.resolver.DefaultRunTemplateFactory;
-import com.deepoove.poi.resolver.RunTemplateFactory;
+import com.deepoove.poi.resolver.DefaultElementTemplateFactory;
+import com.deepoove.poi.resolver.ElementTemplateFactory;
+import com.deepoove.poi.template.ChartTemplate;
+import com.deepoove.poi.template.MetaTemplate;
+import com.deepoove.poi.template.PictureTemplate;
 import com.deepoove.poi.util.RegexUtils;
 
 /**
@@ -58,14 +65,20 @@ public class Configure implements Cloneable {
     private final Map<String, RenderPolicy> CUSTOM_POLICYS = new HashMap<String, RenderPolicy>();
 
     /**
-     * template by plugin: Low priority
+     * template by xwpfRun: Medium priority
      */
     private final Map<Character, RenderPolicy> DEFAULT_POLICYS = new HashMap<Character, RenderPolicy>();
 
     /**
-     * template by reference
+     * template by xwpfchart: Medium priority
      */
-    private final List<ReferenceRenderPolicy<?>> REFERENCE_POLICIES = new ArrayList<>();
+    private final Map<ChartTypes, RenderPolicy> DEFAULT_CHART_POLICYS = new EnumMap<ChartTypes, RenderPolicy>(
+            ChartTypes.class);
+
+    /**
+     * template by element template: Lowest priority
+     */
+    private final Map<Class<? extends MetaTemplate>, RenderPolicy> DEFAULT_TEMPLATE_POLICYS = new HashMap<>();
 
     /**
      * if & for each
@@ -104,12 +117,17 @@ public class Configure implements Cloneable {
     /**
      * the factory of resovler run template
      */
-    RunTemplateFactory<?> runTemplateFactory = new DefaultRunTemplateFactory(this);
+    ElementTemplateFactory elementTemplateFactory = new DefaultElementTemplateFactory(this);
 
     /**
      * the policy of process tag for valid render data error(null or illegal)
      */
     ValidErrorHandler handler = new ClearHandler();
+
+    /**
+     * sp el custom static method
+     */
+    Map<String, Method> spELFunction = new HashMap<String, Method>();
 
     Configure() {
         plugin(GramerSymbol.TEXT, new TextRenderPolicy());
@@ -118,6 +136,22 @@ public class Configure implements Cloneable {
         plugin(GramerSymbol.TABLE, new MiniTableRenderPolicy());
         plugin(GramerSymbol.NUMBERIC, new NumbericRenderPolicy());
         plugin(GramerSymbol.DOCX_TEMPLATE, new DocxRenderPolicy());
+
+        RenderPolicy multiSeriesRenderPolicy = new MultiSeriesChartTemplateRenderPolicy();
+        plugin(ChartTypes.AREA, multiSeriesRenderPolicy);
+        plugin(ChartTypes.AREA3D, multiSeriesRenderPolicy);
+        plugin(ChartTypes.BAR, multiSeriesRenderPolicy);
+        plugin(ChartTypes.BAR3D, multiSeriesRenderPolicy);
+        plugin(ChartTypes.LINE, multiSeriesRenderPolicy);
+        plugin(ChartTypes.LINE3D, multiSeriesRenderPolicy);
+        plugin(ChartTypes.RADAR, multiSeriesRenderPolicy);
+
+        RenderPolicy singleSeriesRenderPolicy = new SingleSeriesChartTemplateRenderPolicy();
+        plugin(ChartTypes.PIE, singleSeriesRenderPolicy);
+        plugin(ChartTypes.PIE3D, singleSeriesRenderPolicy);
+
+        plugin(PictureTemplate.class, new DefaultPictureTemplateRenderPolicy());
+        plugin(ChartTemplate.class, new DefaultChartTemplateRenderPolicy());
     }
 
     /**
@@ -166,6 +200,34 @@ public class Configure implements Cloneable {
     }
 
     /**
+     * 新增或者变更对象模板插件
+     * 
+     * @param clazz
+     *            对象模板类型
+     * @param policy
+     *            策略
+     * @return
+     */
+    Configure plugin(Class<? extends MetaTemplate> clazz, RenderPolicy policy) {
+        DEFAULT_TEMPLATE_POLICYS.put(clazz, policy);
+        return this;
+    }
+
+    /**
+     * 新增或者变更图表插件
+     * 
+     * @param chartType
+     *            图表类型
+     * @param policy
+     *            策略
+     * @return
+     */
+    Configure plugin(ChartTypes chartType, RenderPolicy policy) {
+        DEFAULT_CHART_POLICYS.put(chartType, policy);
+        return this;
+    }
+
+    /**
      * 自定义模板和策略
      * 
      * @param tagName
@@ -177,38 +239,20 @@ public class Configure implements Cloneable {
         CUSTOM_POLICYS.put(tagName, policy);
     }
 
-    /**
-     * 新增引用渲染策略
-     * 
-     * @param policy
-     */
-    public void referencePolicy(ReferenceRenderPolicy<?> policy) {
-        REFERENCE_POLICIES.add(policy);
+    public RenderPolicy getTemplatePolicy(Class<?> clazz) {
+        return DEFAULT_TEMPLATE_POLICYS.get(clazz);
     }
 
-    /**
-     * 获取标签策略
-     * 
-     * @param tagName
-     *            模板名称
-     * @param sign
-     *            语法
-     */
-    public RenderPolicy getPolicy(String tagName, Character sign) {
-        RenderPolicy policy = getCustomPolicy(tagName);
-        return null == policy ? getDefaultPolicy(sign) : policy;
-    }
-
-    public List<ReferenceRenderPolicy<?>> getReferencePolicies() {
-        return REFERENCE_POLICIES;
-    }
-
-    private RenderPolicy getCustomPolicy(String tagName) {
+    public RenderPolicy getCustomPolicy(String tagName) {
         return CUSTOM_POLICYS.get(tagName);
     }
 
-    private RenderPolicy getDefaultPolicy(Character sign) {
+    public RenderPolicy getDefaultPolicy(Character sign) {
         return DEFAULT_POLICYS.get(sign);
+    }
+
+    public RenderPolicy getChartPolicy(ChartTypes type) {
+        return DEFAULT_CHART_POLICYS.get(type);
     }
 
     public Map<Character, RenderPolicy> getDefaultPolicys() {
@@ -217,6 +261,10 @@ public class Configure implements Cloneable {
 
     public Map<String, RenderPolicy> getCustomPolicys() {
         return CUSTOM_POLICYS;
+    }
+
+    public Map<ChartTypes, RenderPolicy> getChartPolicys() {
+        return DEFAULT_CHART_POLICYS;
     }
 
     public Set<Character> getGramerChars() {
@@ -251,12 +299,16 @@ public class Configure implements Cloneable {
         return renderDataComputeFactory;
     }
 
-    public RunTemplateFactory<?> getRunTemplateFactory() {
-        return runTemplateFactory;
+    public ElementTemplateFactory getElementTemplateFactory() {
+        return elementTemplateFactory;
     }
 
     public Pair<Character, Character> getIterable() {
         return iterable;
+    }
+
+    public Map<String, Method> getSpELFunction() {
+        return spELFunction;
     }
 
     @Override
@@ -279,11 +331,21 @@ public class Configure implements Cloneable {
             sb.append("    ").append(gramerPrefix).append(str).append(gramerSuffix);
             sb.append("->").append(policy.getClass().getSimpleName()).append("\n");
         });
-        sb.append("  Reference Plugin: ").append("\n");
-        REFERENCE_POLICIES.forEach(policy -> {
-            sb.append("    ").append(policy.getClass().getSimpleName()).append("\n");
+        sb.append("  Chart Plugin: ").append("\n");
+        DEFAULT_CHART_POLICYS.forEach((type, policy) -> {
+            sb.append("    ").append(type);
+            sb.append("->").append(policy.getClass().getSimpleName()).append("\n");
         });
-
+        sb.append("  Template Plugin: ").append("\n");
+        DEFAULT_TEMPLATE_POLICYS.forEach((clazz, policy) -> {
+            sb.append("    ").append(clazz.getSimpleName());
+            sb.append("->").append(policy.getClass().getSimpleName()).append("\n");
+        });
+        sb.append("  SpELFunction: ").append("\n");
+        spELFunction.forEach((str, method) -> {
+            sb.append("    ").append(str);
+            sb.append("->").append(method.toString()).append("\n");
+        });
         return sb.toString();
     }
 

@@ -19,8 +19,10 @@ package com.deepoove.poi.render.processor;
 import com.deepoove.poi.XWPFTemplate;
 import com.deepoove.poi.render.compute.RenderDataCompute;
 import com.deepoove.poi.resolver.Resolver;
+import com.deepoove.poi.template.ChartTemplate;
 import com.deepoove.poi.template.InlineIterableTemplate;
 import com.deepoove.poi.template.IterableTemplate;
+import com.deepoove.poi.template.PictureTemplate;
 import com.deepoove.poi.template.run.RunTemplate;
 
 public class DocumentProcessor extends DefaultTemplateProcessor {
@@ -49,6 +51,16 @@ public class DocumentProcessor extends DefaultTemplateProcessor {
     @Override
     public void visit(RunTemplate runTemplate) {
         runTemplate.accept(elementProcessor);
+    }
+   
+    @Override
+    public void visit(PictureTemplate pictureTemplate) {
+        pictureTemplate.accept(elementProcessor);
+    }
+    
+    @Override
+    public void visit(ChartTemplate chartTemplate) {
+        chartTemplate.accept(elementProcessor);
     }
 
 }

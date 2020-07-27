@@ -15,14 +15,18 @@
  */
 package com.deepoove.poi.config;
 
+import java.lang.reflect.Method;
+import java.util.Map;
+
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.poi.xddf.usermodel.chart.ChartTypes;
 
 import com.deepoove.poi.config.Configure.ELMode;
 import com.deepoove.poi.config.Configure.ValidErrorHandler;
 import com.deepoove.poi.policy.RenderPolicy;
-import com.deepoove.poi.policy.ref.ReferenceRenderPolicy;
 import com.deepoove.poi.render.compute.RenderDataComputeFactory;
-import com.deepoove.poi.resolver.RunTemplateFactory;
+import com.deepoove.poi.resolver.ElementTemplateFactory;
+import com.deepoove.poi.template.MetaTemplate;
 import com.deepoove.poi.util.RegexUtils;
 
 public class ConfigureBuilder {
@@ -63,8 +67,13 @@ public class ConfigureBuilder {
         return this;
     }
 
-    public ConfigureBuilder setRunTemplateFactory(RunTemplateFactory<?> runTemplateFactory) {
-        config.runTemplateFactory = runTemplateFactory;
+    public ConfigureBuilder setSpELFunction(Map<String, Method> spELFunction) {
+        config.spELFunction = spELFunction;
+        return this;
+    }
+
+    public ConfigureBuilder setElementTemplateFactory(ElementTemplateFactory elementTemplateFactory) {
+        config.elementTemplateFactory = elementTemplateFactory;
         return this;
     }
 
@@ -73,17 +82,13 @@ public class ConfigureBuilder {
         return this;
     }
 
-    /**
-     * @deprecated use {@link ConfigureBuilder#bind()} instead
-     */
-    @Deprecated
-    public ConfigureBuilder customPolicy(String tagName, RenderPolicy policy) {
-        config.customPolicy(tagName, policy);
+    public ConfigureBuilder addPlugin(Class<? extends MetaTemplate> clazz, RenderPolicy policy) {
+        config.plugin(clazz, policy);
         return this;
     }
 
-    public ConfigureBuilder referencePolicy(ReferenceRenderPolicy<?> policy) {
-        config.referencePolicy(policy);
+    public ConfigureBuilder addPlugin(ChartTypes chartType, RenderPolicy policy) {
+        config.plugin(chartType, policy);
         return this;
     }
 

@@ -18,20 +18,24 @@ package com.deepoove.poi.resolver;
 
 import java.util.Set;
 
+import org.apache.poi.xwpf.usermodel.XWPFChart;
+import org.apache.poi.xwpf.usermodel.XWPFPicture;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 
 import com.deepoove.poi.config.Configure;
+import com.deepoove.poi.template.ChartTemplate;
+import com.deepoove.poi.template.PictureTemplate;
 import com.deepoove.poi.template.run.RunTemplate;
 
 /**
  * @author Sayi
  */
-public class DefaultRunTemplateFactory implements RunTemplateFactory<RunTemplate> {
+public class DefaultElementTemplateFactory implements ElementTemplateFactory {
 
     public static final char EMPTY_CHAR = '\0';
     private final Configure config;
 
-    public DefaultRunTemplateFactory(Configure config) {
+    public DefaultElementTemplateFactory(Configure config) {
         this.config = config;
     }
 
@@ -53,6 +57,24 @@ public class DefaultRunTemplateFactory implements RunTemplateFactory<RunTemplate
         template.setTagName(symbol.equals(Character.valueOf(EMPTY_CHAR)) ? tag : tag.substring(1));
         template.setSign(symbol);
         template.setRun(run);
+        return template;
+    }
+
+    @Override
+    public PictureTemplate createPicureTemplate(String tag, XWPFPicture pic) {
+        PictureTemplate template = new PictureTemplate();
+        template.setSource(config.getGramerPrefix() + tag + config.getGramerSuffix());
+        template.setTagName(tag);
+        template.setSign(EMPTY_CHAR);
+        template.setPicture(pic);
+        return template;
+    }
+
+    @Override
+    public ChartTemplate createChartTemplate(String tag, XWPFChart chart, XWPFRun run) {
+        ChartTemplate template = new ChartTemplate(tag, chart, run);
+        template.setSource(config.getGramerPrefix() + tag + config.getGramerSuffix());
+        template.setSign(EMPTY_CHAR);
         return template;
     }
 

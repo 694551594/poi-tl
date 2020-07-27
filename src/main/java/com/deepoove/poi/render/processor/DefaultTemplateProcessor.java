@@ -16,15 +16,20 @@
 
 package com.deepoove.poi.render.processor;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.deepoove.poi.XWPFTemplate;
 import com.deepoove.poi.render.compute.RenderDataCompute;
 import com.deepoove.poi.resolver.Resolver;
+import com.deepoove.poi.template.ChartTemplate;
 import com.deepoove.poi.template.InlineIterableTemplate;
 import com.deepoove.poi.template.IterableTemplate;
 import com.deepoove.poi.template.MetaTemplate;
+import com.deepoove.poi.template.PictureTemplate;
 import com.deepoove.poi.template.run.RunTemplate;
+import com.deepoove.poi.xwpf.XWPFTextboxContent;
 
 public abstract class DefaultTemplateProcessor implements Visitor {
 
@@ -43,9 +48,21 @@ public abstract class DefaultTemplateProcessor implements Visitor {
         // no-op
     }
 
+    @SuppressWarnings("deprecation")
     public void process(List<MetaTemplate> templates) {
         // process in order( or sort first)
         templates.forEach(template -> template.accept(this));
+        Set<XWPFTextboxContent> textboxs = new HashSet<>();
+        templates.forEach(template -> {
+            if (template instanceof RunTemplate) {
+                if (((RunTemplate) template).getRun().getParagraph().getBody() instanceof XWPFTextboxContent) {
+                    textboxs.add((XWPFTextboxContent) ((RunTemplate) template).getRun().getParagraph().getBody());
+                }
+            }
+        });
+        textboxs.forEach(content -> {
+            content.getXmlObject().set(content.getCTTxbxContent());
+        });
     }
 
     @Override
@@ -56,6 +73,16 @@ public abstract class DefaultTemplateProcessor implements Visitor {
     @Override
     public void visit(RunTemplate runTemplate) {
         visitOther(runTemplate);
+    }
+
+    @Override
+    public void visit(PictureTemplate pictureTemplate) {
+        visitOther(pictureTemplate);
+    }
+
+    @Override
+    public void visit(ChartTemplate chartTemplate) {
+        visitOther(chartTemplate);
     }
 
     @Override

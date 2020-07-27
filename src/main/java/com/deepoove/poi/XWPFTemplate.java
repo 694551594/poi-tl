@@ -33,7 +33,6 @@ import org.slf4j.LoggerFactory;
 import com.deepoove.poi.config.Configure;
 import com.deepoove.poi.exception.ResolverException;
 import com.deepoove.poi.policy.RenderPolicy;
-import com.deepoove.poi.policy.ref.ReferenceRenderPolicy;
 import com.deepoove.poi.render.DefaultRender;
 import com.deepoove.poi.render.Render;
 import com.deepoove.poi.resolver.Resolver;
@@ -51,7 +50,7 @@ import com.deepoove.poi.xwpf.NiceXWPFDocument;
  */
 public class XWPFTemplate implements Closeable {
     private static Logger logger = LoggerFactory.getLogger(XWPFTemplate.class);
-    private static final String SUPPORT_MINIMUM_VERSION = "4.0.0";
+    private static final String SUPPORT_MINIMUM_VERSION = "4.1.1";
 
     private NiceXWPFDocument doc;
 
@@ -62,9 +61,14 @@ public class XWPFTemplate implements Closeable {
     private List<MetaTemplate> eleTemplates;
 
     static {
-        Preconditions.checkMinimumVersion(Version.getVersion(), SUPPORT_MINIMUM_VERSION,
-                (cur, min) -> "Require Apach POI version at least " + min + ", but now is " + cur
-                        + ", please check the dependency of project.");
+        try {
+            Class.forName("org.apache.poi.Version");
+            Preconditions.checkMinimumVersion(Version.getVersion(), SUPPORT_MINIMUM_VERSION,
+                    (cur, min) -> "Require Apache POI version at least " + min + ", but now is " + cur
+                    + ", please check the dependency of project.");
+        } catch (ClassNotFoundException e) {
+            // no-op
+        }
     }
 
     private XWPFTemplate() {}
@@ -142,17 +146,6 @@ public class XWPFTemplate implements Closeable {
     public XWPFTemplate render(Object model, OutputStream out) throws IOException {
         this.render(model);
         this.write(out);
-        return this;
-    }
-
-    /**
-     * bind reference render policy
-     * 
-     * @param refPolicy
-     * @return
-     */
-    public XWPFTemplate bindRefPolicy(ReferenceRenderPolicy<?> refPolicy) {
-        this.config.referencePolicy(refPolicy);
         return this;
     }
 
